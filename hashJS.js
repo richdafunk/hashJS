@@ -6,6 +6,8 @@
  * based on provided data. Instead of introducing new syntax, hashJS utilizes native JavaScript within templates,
  * offering both simplicity and flexibility to developers.
  * 
+ * https://hashjs.org/
+ *
  * Version: 1.2.0
  * Author: Open Productivity ORG
  * License: MIT
