@@ -42,5 +42,6 @@ hashJS.prototype = {
     },
 
     refresh: function(data) { this.update(data); },
-    bind: function(data) { this.update(data); }    
+    bind: function(data) { this.update(data); }
+    
 };
