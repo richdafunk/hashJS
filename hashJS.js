@@ -1,3 +1,17 @@
+/**
+ * hashJS: A JavaScript Templating Library
+ * 
+ * This library provides a mechanism to compile and render templates using pure JavaScript.
+ * By leveraging the power of JavaScript's scope and context, hashJS allows for dynamic rendering of templates
+ * based on provided data. Instead of introducing new syntax, hashJS utilizes native JavaScript within templates,
+ * offering both simplicity and flexibility to developers.
+ * 
+ * Version: 1.2.0
+ * Author: Open Productivity ORG
+ * License: MIT
+ * Date: 2023-10-23
+ */
+
 const hashJS = function(templateElementId, data) {
     this.templateElement = document.getElementById(templateElementId);
     this.originalTemplate = this.templateElement.innerHTML;
