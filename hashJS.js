@@ -11,7 +11,7 @@
  * Version: 1.3.1
  * Author: Open Productivity ORG
  * License: MIT
- * Date: 2023-10-23
+ * Date: 2023-10-25
  */
 
 const hashJS = function(templateElementId, data, outputElementId) {
