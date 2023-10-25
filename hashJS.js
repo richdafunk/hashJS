@@ -8,17 +8,21 @@
  * 
  * https://hashjs.org/
  *
- * Version: 1.2.0
+ * Version: 1.3.0
  * Author: Open Productivity ORG
  * License: MIT
- * Date: 2023-10-23
+ * Date: 2023-10-25
  */
 
-const hashJS = function(templateElementId, data) {
+const hashJS = function(templateElementId, data, outputElementId) {
     this.templateElement = document.getElementById(templateElementId);
     this.originalTemplate = this.templateElement.innerHTML;
     this.currentData = data;
     this.compiledFunction = this.compileTemplate(this.originalTemplate);
+
+    // If the outputElementId is provided, use that element to display the output
+    this.outputElement = outputElementId ? document.getElementById(outputElementId) : this.templateElement;
+
     if (data) this.update();
 };
 
@@ -54,7 +58,7 @@ hashJS.prototype = {
     update: function(data) {
         if (data) this.currentData = data;
         const renderedTemplate = this.compiledFunction(this.currentData);
-        this.templateElement.innerHTML = renderedTemplate;
+        this.outputElement.innerHTML = renderedTemplate;
     },
 
     refresh: function(data) { this.update(data); },
