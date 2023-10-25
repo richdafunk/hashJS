@@ -8,15 +8,16 @@
  * 
  * https://hashjs.org/
  *
- * Version: 1.3.0
+ * Version: 1.3.1
  * Author: Open Productivity ORG
  * License: MIT
- * Date: 2023-10-25
+ * Date: 2023-10-23
  */
 
 const hashJS = function(templateElementId, data, outputElementId) {
     this.templateElement = document.getElementById(templateElementId);
-    this.originalTemplate = this.templateElement.innerHTML;
+    // Use the 'text' property for script tags with non-standard types, otherwise use 'innerHTML'
+    this.originalTemplate = this.templateElement.tagName === 'SCRIPT' ? this.templateElement.text : this.templateElement.innerHTML;
     this.currentData = data;
     this.compiledFunction = this.compileTemplate(this.originalTemplate);
 
