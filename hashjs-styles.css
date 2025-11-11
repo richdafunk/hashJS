@@ -1,0 +1,17 @@
+/* HashJS Monaco Editor Styles */
+
+/* Yellow background for HashJS code sections in light theme */
+.monaco-editor .hashjs-highlight {
+    background-color: #FFF9E6 !important;
+}
+
+/* Darker yellow/beige background for HashJS code sections in dark themes */
+.monaco-editor.vs-dark .hashjs-highlight,
+.monaco-editor.hc-black .hashjs-highlight {
+    background-color: #3A3A2A !important;
+}
+
+/* Optional: Add a subtle border to make sections more distinct */
+.monaco-editor .hashjs-highlight {
+    border-radius: 2px;
+}
