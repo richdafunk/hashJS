@@ -8,7 +8,7 @@
  * 
  * https://hashjs.org/
  *
- * Version: 1.3.2
+ * Version: 1.3.3
  * Author: Open Productivity ORG
  * License: MIT
  * Date: 2025-11-21
