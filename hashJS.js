@@ -8,21 +8,38 @@
  * 
  * https://hashjs.org/
  *
- * Version: 1.3.1
+ * Version: 1.3.2
  * Author: Open Productivity ORG
  * License: MIT
- * Date: 2023-10-25
+ * Date: 2025-11-21
  */
 
-const hashJS = function(templateElementId, data, outputElementId) {
-    this.templateElement = document.getElementById(templateElementId);
+const hashJS = function(templateElementOrId, data, outputElementOrId) {
+    // Helper function to resolve element from ID or element
+    const resolveElement = function(elementOrId, paramName) {
+        if (typeof elementOrId === 'string') {
+            const element = document.getElementById(elementOrId);
+            if (!element) {
+                throw new Error(`${paramName}: Element with ID "${elementOrId}" not found`);
+            }
+            return element;
+        } else if (elementOrId instanceof HTMLElement) {
+            return elementOrId;
+        } else {
+            throw new Error(`${paramName}: Must be either an element ID (string) or a DOM element`);
+        }
+    };
+
+    // Resolve template element
+    this.templateElement = resolveElement(templateElementOrId, 'Template element');
+    
     // Use the 'text' property for script tags with non-standard types, otherwise use 'innerHTML'
     this.originalTemplate = this.templateElement.tagName === 'SCRIPT' ? this.templateElement.text : this.templateElement.innerHTML;
     this.currentData = data;
     this.compiledFunction = this.compileTemplate(this.originalTemplate);
 
-    // If the outputElementId is provided, use that element to display the output
-    this.outputElement = outputElementId ? document.getElementById(outputElementId) : this.templateElement;
+    // If the outputElementOrId is provided, use that element to display the output
+    this.outputElement = outputElementOrId ? resolveElement(outputElementOrId, 'Output element') : this.templateElement;
 
     if (data) this.update();
 };
