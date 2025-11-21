@@ -1,6 +1,6 @@
 # hashJS
-Frontend Rendering and Server Side Rendering library.
-"It's just plain and powerful Javascript Syntax"
+Frontend Databinding and Server-Side Rendering library.
+"Plain and powerful Javascript Syntax"
 
  * This library provides a mechanism to compile and render templates using pure JavaScript.
  * By leveraging the power of JavaScript's scope and context, hashJS allows for dynamic rendering of templates
