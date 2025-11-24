@@ -8,13 +8,14 @@
  * 
  * https://hashjs.org/
  *
- * Version: 1.3.4
+ * Version: 1.3.5
  * Author: Open Productivity ORG
  * License: MIT
- * Date: 2025-11-24
+ * Date: 2025-11-21
  */
 
-const hashJS = function(templateElementOrId, data, outputElementOrId) {
+(function() {
+    const hashJS = function(templateElementOrId, data, outputElementOrId) {
     // Helper function to resolve element from ID or element
     const resolveElement = function(elementOrId, paramName) {
         if (typeof elementOrId === 'string') {
@@ -66,8 +67,33 @@ hashJS.prototype = {
                 const end = template.indexOf('#', cursor + 1);
                 if (end > -1) {
                     const code = template.substring(cursor + 1, end).trim();
-                    if (code.startsWith('for(') || code.startsWith('for ') || code.startsWith('if(') || code.startsWith('if ') || code === '}') {
-                        output += `${code}\n`;
+                    
+                    // Determine if this is a control structure or an expression
+                    // Control structures are:
+                    // 1. Anything ending with { (block openers)
+                    // 2. Just } (block closers)
+                    // 3. Standalone keywords: else, break, continue, return, case, default
+                    // 4. Lines starting with } followed by keywords (} else, } catch, etc)
+                    const isControl = 
+                        code.endsWith('{') ||                    // if(...) {, for(...) {, while(...) {, try {, etc.
+                        code === '}' ||                          // }
+                        code === 'else' ||                       // else
+                        code === 'break' ||                      // break
+                        code === 'continue' ||                   // continue
+                        code.startsWith('return ') ||            // return x;
+                        code === 'return' ||                     // return;
+                        code.startsWith('case ') ||              // case x:
+                        code === 'default:' ||                   // default:
+                        code.startsWith('} ') ||                 // } else, } catch, } finally, } while, etc.
+                        /^}\s*while\s*\(/.test(code);            // } while(...) from do-while
+                    
+                    if (isControl) {
+                        // Add semicolon for statements that need it
+                        if (code === 'break' || code === 'continue' || code === 'return') {
+                            output += `${code};\n`;
+                        } else {
+                            output += `${code}\n`;
+                        }
                     } else {
                         output += `result += ${code};\n`;
                     }
@@ -95,3 +121,16 @@ hashJS.prototype = {
     bind: function(data) { this.update(data); }
     
 };
+
+// Export to global scope
+if (typeof window !== 'undefined') {
+    window.hashJS = hashJS;
+}
+if (typeof global !== 'undefined') {
+    global.hashJS = hashJS;
+}
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = hashJS;
+}
+
+})();
