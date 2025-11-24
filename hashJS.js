@@ -8,10 +8,10 @@
  * 
  * https://hashjs.org/
  *
- * Version: 1.3.3
+ * Version: 1.3.4
  * Author: Open Productivity ORG
  * License: MIT
- * Date: 2025-11-21
+ * Date: 2025-11-24
  */
 
 const hashJS = function(templateElementOrId, data, outputElementOrId) {
@@ -50,6 +50,18 @@ hashJS.prototype = {
         let cursor = 0;
 
         while (cursor < template.length) {
+            // Check for statement syntax: #{...}#
+            if (template.startsWith('#{', cursor)) {
+                const end = template.indexOf('}#', cursor + 2);
+                if (end > -1) {
+                    const code = template.substring(cursor + 2, end).trim();
+                    output += `${code}\n`;
+                    cursor = end + 2;
+                    continue;
+                }
+            }
+            
+            // Check for expression/control syntax: #...#
             if (template.startsWith('#', cursor)) {
                 const end = template.indexOf('#', cursor + 1);
                 if (end > -1) {
