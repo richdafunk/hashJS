@@ -8,10 +8,10 @@
  * 
  * https://hashjs.org/
  *
- * Version: 1.3.5
+ * Version: 1.3.6
  * Author: Open Productivity ORG
  * License: MIT
- * Date: 2025-11-21
+ * Date: 2026-08-11
  */
 
 (function() {
@@ -119,7 +119,28 @@ hashJS.prototype = {
 
     refresh: function(data) { this.update(data); },
     bind: function(data) { this.update(data); }
-    
+
+};
+
+/**
+ * Render a template string with data and return the result as a string.
+ *
+ * The constructor works against the DOM: it resolves an element, reads its
+ * markup and writes the result back into the page. This does the same
+ * compilation without a document, so the same template can be rendered on a
+ * server, in a worker, or anywhere else there is no DOM.
+ *
+ *   const html = hashJS.render('<li>#name#</li>', { name: 'Ada' });
+ *
+ * @param {string} template - The template source.
+ * @param {object} data - The data the template is rendered against.
+ * @returns {string} The rendered output.
+ */
+hashJS.render = function(template, data) {
+    if (typeof template !== 'string') {
+        throw new Error('hashJS.render: template must be a string');
+    }
+    return hashJS.prototype.compileTemplate(template)(data || {});
 };
 
 // Export to global scope
