@@ -125,11 +125,19 @@ hashJS.prototype = {
         // Literal text is gathered up and emitted in one assignment per run,
         // rather than one per character.
         let literal = '';
+
+        // A switch body may only contain case clauses, so the newline and
+        // indentation between `switch(x) {` and the first `case` would be a
+        // syntax error. Drop that whitespace so a switch can be laid out over
+        // several lines like every other block. Anything other than whitespace
+        // is still emitted, and still reported by the engine as the mistake it is.
+        let inSwitchHead = false;
+
         const flush = function() {
-            if (literal !== '') {
-                output += `result += ${JSON.stringify(literal)};\n`;
-                literal = '';
-            }
+            if (literal === '') { return; }
+            if (inSwitchHead && literal.trim() === '') { literal = ''; return; }
+            output += `result += ${JSON.stringify(literal)};\n`;
+            literal = '';
         };
 
         while (cursor < template.length) {
@@ -171,7 +179,9 @@ hashJS.prototype = {
                         /^}\s*while\s*\(/.test(code);            // } while(...) from do-while
 
                     if (isControl) {
+                        if (/^switch\s*\(/.test(code)) { inSwitchHead = true; }
                         flush();
+                        if (code.startsWith('case ') || code === 'default:') { inSwitchHead = false; }
                         // Add semicolon for statements that need it
                         if (code === 'break' || code === 'continue' || code === 'return') {
                             output += `${code};\n`;
