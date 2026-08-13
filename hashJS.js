@@ -87,6 +87,114 @@ const isExpression = function(code) {
     }
 };
 
+/**
+ * Turn a template into the body of a render function: statements that build
+ * up `result` and return it.
+ *
+ * Both the runtime compiler and precompile go through here, so a template
+ * precompiled at build time and the same template compiled in the browser
+ * produce byte-identical code.
+ */
+const buildBody = function(template) {
+    let output = "let result = '';\n";
+    let cursor = 0;
+
+    // Literal text is gathered up and emitted in one assignment per run,
+    // rather than one per character.
+    let literal = '';
+
+    // A switch body may only contain case clauses, so the newline and
+    // indentation between `switch(x) {` and the first `case` would be a
+    // syntax error. Drop that whitespace so a switch can be laid out over
+    // several lines like every other block. Anything other than whitespace
+    // is still emitted, and still reported by the engine as the mistake it is.
+    let inSwitchHead = false;
+
+    const flush = function() {
+        if (literal === '') { return; }
+        if (inSwitchHead && literal.trim() === '') { literal = ''; return; }
+        output += `result += ${JSON.stringify(literal)};\n`;
+        literal = '';
+    };
+
+    while (cursor < template.length) {
+        // Check for statement syntax: #{...}#
+        if (template.startsWith('#{', cursor)) {
+            const end = template.indexOf('}#', cursor + 2);
+            if (end > -1) {
+                const code = template.substring(cursor + 2, end).trim();
+                flush();
+                output += `${code}\n`;
+                cursor = end + 2;
+                continue;
+            }
+        }
+
+        // Check for expression/control syntax: #...#
+        if (template.startsWith('#', cursor)) {
+            const end = template.indexOf('#', cursor + 1);
+            if (end > -1) {
+                const code = template.substring(cursor + 1, end).trim();
+
+                // Determine if this is a control structure or an expression
+                // Control structures are:
+                // 1. Anything ending with { (block openers)
+                // 2. Just } (block closers)
+                // 3. Standalone keywords: else, break, continue, return, case, default
+                // 4. Lines starting with } followed by keywords (} else, } catch, etc)
+                const isControl =
+                    code.endsWith('{') ||                    // if(...) {, for(...) {, while(...) {, try {, etc.
+                    code === '}' ||                          // }
+                    code === 'else' ||                       // else
+                    code === 'break' ||                      // break
+                    code === 'continue' ||                   // continue
+                    code.startsWith('return ') ||            // return x;
+                    code === 'return' ||                     // return;
+                    code.startsWith('case ') ||              // case x:
+                    code === 'default:' ||                   // default:
+                    code.startsWith('} ') ||                 // } else, } catch, } finally, } while, etc.
+                    /^}\s*while\s*\(/.test(code);            // } while(...) from do-while
+
+                if (isControl) {
+                    if (/^switch\s*\(/.test(code)) { inSwitchHead = true; }
+                    flush();
+                    if (code.startsWith('case ') || code === 'default:') { inSwitchHead = false; }
+                    // Add semicolon for statements that need it
+                    if (code === 'break' || code === 'continue' || code === 'return') {
+                        output += `${code};\n`;
+                    } else {
+                        output += `${code}\n`;
+                    }
+                    cursor = end + 1;
+                    continue;
+                }
+
+                if (isExpression(code)) {
+                    flush();
+                    output += `result += __out(${code});\n`;
+                    cursor = end + 1;
+                    continue;
+                }
+                // Not an expression: this hash is ordinary text. Fall through
+                // and emit it, then carry on from the character after it —
+                // the closing hash gets its own chance to open an expression.
+            }
+        }
+
+        literal += template[cursor];
+        cursor++;
+    }
+
+    flush();
+    output += "return result;";
+    return output;
+};
+
+// Wrap a raw compiled function so callers hand it data rather than a scope.
+const asRenderer = function(compiled) {
+    return function(data) { return compiled(createScope(data)); };
+};
+
 const hashJS = function(templateElementOrId, data, outputElementOrId) {
     // Helper function to resolve element from ID or element
     const resolveElement = function(elementOrId, paramName) {
@@ -119,100 +227,7 @@ const hashJS = function(templateElementOrId, data, outputElementOrId) {
 
 hashJS.prototype = {
     compileTemplate: function(template) {
-        let output = "let result = '';\n";
-        let cursor = 0;
-
-        // Literal text is gathered up and emitted in one assignment per run,
-        // rather than one per character.
-        let literal = '';
-
-        // A switch body may only contain case clauses, so the newline and
-        // indentation between `switch(x) {` and the first `case` would be a
-        // syntax error. Drop that whitespace so a switch can be laid out over
-        // several lines like every other block. Anything other than whitespace
-        // is still emitted, and still reported by the engine as the mistake it is.
-        let inSwitchHead = false;
-
-        const flush = function() {
-            if (literal === '') { return; }
-            if (inSwitchHead && literal.trim() === '') { literal = ''; return; }
-            output += `result += ${JSON.stringify(literal)};\n`;
-            literal = '';
-        };
-
-        while (cursor < template.length) {
-            // Check for statement syntax: #{...}#
-            if (template.startsWith('#{', cursor)) {
-                const end = template.indexOf('}#', cursor + 2);
-                if (end > -1) {
-                    const code = template.substring(cursor + 2, end).trim();
-                    flush();
-                    output += `${code}\n`;
-                    cursor = end + 2;
-                    continue;
-                }
-            }
-
-            // Check for expression/control syntax: #...#
-            if (template.startsWith('#', cursor)) {
-                const end = template.indexOf('#', cursor + 1);
-                if (end > -1) {
-                    const code = template.substring(cursor + 1, end).trim();
-
-                    // Determine if this is a control structure or an expression
-                    // Control structures are:
-                    // 1. Anything ending with { (block openers)
-                    // 2. Just } (block closers)
-                    // 3. Standalone keywords: else, break, continue, return, case, default
-                    // 4. Lines starting with } followed by keywords (} else, } catch, etc)
-                    const isControl =
-                        code.endsWith('{') ||                    // if(...) {, for(...) {, while(...) {, try {, etc.
-                        code === '}' ||                          // }
-                        code === 'else' ||                       // else
-                        code === 'break' ||                      // break
-                        code === 'continue' ||                   // continue
-                        code.startsWith('return ') ||            // return x;
-                        code === 'return' ||                     // return;
-                        code.startsWith('case ') ||              // case x:
-                        code === 'default:' ||                   // default:
-                        code.startsWith('} ') ||                 // } else, } catch, } finally, } while, etc.
-                        /^}\s*while\s*\(/.test(code);            // } while(...) from do-while
-
-                    if (isControl) {
-                        if (/^switch\s*\(/.test(code)) { inSwitchHead = true; }
-                        flush();
-                        if (code.startsWith('case ') || code === 'default:') { inSwitchHead = false; }
-                        // Add semicolon for statements that need it
-                        if (code === 'break' || code === 'continue' || code === 'return') {
-                            output += `${code};\n`;
-                        } else {
-                            output += `${code}\n`;
-                        }
-                        cursor = end + 1;
-                        continue;
-                    }
-
-                    if (isExpression(code)) {
-                        flush();
-                        output += `result += __out(${code});\n`;
-                        cursor = end + 1;
-                        continue;
-                    }
-                    // Not an expression: this hash is ordinary text. Fall through
-                    // and emit it, then carry on from the character after it —
-                    // the closing hash gets its own chance to open an expression.
-                }
-            }
-
-            literal += template[cursor];
-            cursor++;
-        }
-
-        flush();
-        output += "return result;";
-
-        const compiled = new Function('__scope', `with(__scope) { ${output} }`);
-        return function(data) { return compiled(createScope(data)); };
+        return asRenderer(new Function('__scope', `with(__scope) { ${buildBody(template)} }`));
     },
 
     update: function(data) {
@@ -265,6 +280,55 @@ hashJS.compile = function(template) {
         throw new Error('hashJS.compile: template must be a string');
     }
     return hashJS.prototype.compileTemplate(template);
+};
+
+/**
+ * Compile a template to JavaScript source instead of to a live function.
+ *
+ * Every other entry point reaches `new Function`, which a Content Security
+ * Policy blocks unless it allows `script-src 'unsafe-eval'`. Precompiling
+ * moves that step to build time: the source this returns is written into an
+ * ordinary .js file, served like any other script, and paired with
+ * `fromPrecompiled` at runtime. Nothing is evaluated in the browser, so no
+ * CSP exception is needed.
+ *
+ *   // build step
+ *   fs.writeFileSync('templates.js',
+ *       'window.T = { row: ' + hashJS.precompile(src) + ' };');
+ *
+ *   // in the page, under a strict CSP
+ *   const row = hashJS.fromPrecompiled(window.T.row);
+ *   element.innerHTML = row({ name: 'Ada' });
+ *
+ * The emitted function uses `with`, so the file it lands in must be a
+ * classic script rather than a module — `with` is a syntax error in strict
+ * mode, which modules are by default.
+ *
+ * @param {string} template - The template source.
+ * @returns {string} Source text of a function expression.
+ */
+hashJS.precompile = function(template) {
+    if (typeof template !== 'string') {
+        throw new Error('hashJS.precompile: template must be a string');
+    }
+    return `function (__scope) { with(__scope) { ${buildBody(template)} } }`;
+};
+
+/**
+ * Turn a function produced by `precompile` into a renderer.
+ *
+ * The precompiled function expects the scope object the library builds, not
+ * your data. This pairs it with that scope so it takes data like every other
+ * render function.
+ *
+ * @param {function} compiled - A function emitted by precompile.
+ * @returns {function(object): string} A function that renders the template.
+ */
+hashJS.fromPrecompiled = function(compiled) {
+    if (typeof compiled !== 'function') {
+        throw new Error('hashJS.fromPrecompiled: expected a function from precompile');
+    }
+    return asRenderer(compiled);
 };
 
 /**
