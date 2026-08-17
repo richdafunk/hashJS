@@ -110,9 +110,42 @@ This does not apply to `hashJS.render`, which is handed the string directly.
 
 ## Content Security Policy
 
-Templates are compiled with `new Function`, so a page under CSP needs
-`script-src 'unsafe-eval'`. Pre-compiling templates at build time to avoid this
-is not supported yet.
+Compiling a template means turning source into a function, which means
+`new Function` — and a strict policy blocks that unless it allows
+`script-src 'unsafe-eval'`.
+
+You do not have to grant it. Precompile instead:
+
+```
+node precompile.js templates/ -o public/templates.js
+```
+
+That writes an ordinary script containing the render functions your templates
+compile to. Load it in the page and pair it with `fromPrecompiled`:
+
+```html
+<script src="/hashJS.js"></script>
+<script src="/templates.js"></script>
+<script>
+    const row = hashJS.fromPrecompiled(hashJSTemplates.row);
+    list.innerHTML = users.map(row).join('');
+</script>
+```
+
+Nothing is evaluated in the browser, so the policy stays closed. Verified
+against `default-src 'none'; script-src 'unsafe-inline'`: the constructor and
+`render` both raise `EvalError`, while the precompiled path renders normally.
+
+The generated file uses `with`, so load it as a classic script — `with` is a
+syntax error in strict mode and therefore in modules.
+
+### Why runtime compilation needs eval at all
+
+A template arrives as a string and its expressions are real JavaScript. Running
+them without handing them to the engine would mean parsing and interpreting
+JavaScript in JavaScript — a subset of the language, several times slower, and
+no longer the thing this library promises. Precompiling moves that step to a
+machine you control instead of removing it.
 
 ## Install
 
